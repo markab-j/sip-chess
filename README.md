@@ -12,11 +12,11 @@ BASE_PATH=/sip-chess npm run build
 
 ## Play
 
-Main menu → Start → choose one of four characters, color and difficulty. Only single-player is available. The menu contains the logo and primary action without promotional subtitles.
+Main menu → Start → choose one of four characters, color and difficulty. Only single-player is available. The title screen uses an original generated chess emblem and localized wordmark, with only the primary start action and optional resume. No character cutout is displayed there.
 An opponent is randomly selected from the other three. Characters do not alter chess rules or AI strength.
 Click or drag to move, choose promotion, undo or start a new game. PGN and character selection are restored from localStorage. Returning to the menu pauses AI; continue resumes the saved game. Restart/menu changes terminate the Worker and invalidate pending results.
 
-Only checkmate uses a full-screen, skippable cinematic. Check, queen capture, en passant, promotion, castling and ordinary captures display character-specific dialogue and transparent illustrations in reserved side space. Normal play shows profile portraits above (opponent) and below (player) the board. Desktop side columns are reserved for event illustrations. Mobile reserves two reaction areas above the board. Checkmate uses viewport-bounded, top-anchored art so faces and horns stay visible. The non-modal animation lab uses the exact same reactions and checkmate timeline.
+Only checkmate uses a full-screen, skippable cinematic. Check, queen capture, en passant, promotion, castling and ordinary captures display character-specific dialogue and transparent illustrations in reserved side space. Normal play shows profile portraits above (opponent) and below (player) the board. Desktop side columns are reserved for event illustrations. Mobile reserves two reaction areas above the board. Checkmate uses a 3.86-second cancellable timeline: center slash, diagonal panels and face zoom, closed/open raster-eye transition, accelerating low rumble, impact freeze and shake, staggered localized typography, then a split-direction sweep exit. Portrait sizes remain bounded so faces and horns stay visible. The non-modal animation lab uses the exact same reactions and checkmate timeline.
 
 ## Languages
 
@@ -30,7 +30,9 @@ With the dev server running, run `TEST_URL=http://127.0.0.1:5173 npm run test:br
 
 `static/art/characters.png` is a real alpha-transparent raster sheet edited using the image-generation tool from the four unique user-supplied character references. No SVG character substitutes or external image URLs are used. The source generation is retained in the workspace's generated_images directory. CharacterArt uses CSS viewports into the raster sheet; portraits and full-body views share that image.
 
-Names, personalities and event lines live in `src/lib/characters.ts`. SideReaction renders nonblocking character reactions; Cutscene handles checkmate only. Audio is synthesized locally. The uploaded video was used as motion reference, not embedded or redistributed.
+Names, personalities and event lines live in `src/lib/characters.ts`. `static/art/faces.png` contains four registered closed/open portrait pairs generated from the character references. `static/art/emblem.png` is an original generated logo emblem. SideReaction renders nonblocking character reactions; Cutscene handles checkmate only. `timeline.ts` owns cancellation of cinematic animations, phase timers and sound cues. Audio uses layered oscillators and filtered noise for swishes, low rumble, piece taps and impacts; mute/volume affect active sounds too.
+
+`board-motion.ts` animates board assembly and piece placement on a new match, plus real travel, capture removal, castling and promotion movement. It creates disposable DOM overlays only; chess.js remains the state authority. Menu navigation cancels overlays and restores any hidden destination pieces. Reduced motion bypasses travel/assembly and uses a short static finish. The uploaded video was used as motion reference, not embedded or redistributed.
 
 ## Deployment
 

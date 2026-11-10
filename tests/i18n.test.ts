@@ -1,0 +1,5 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {Chess} from 'chess.js';
+import {ko,ja} from '../src/lib/i18n';import {outcomeKey} from '../src/lib/game';import {characters,eventNames,lineFor,eventName,type Reaction} from '../src/lib/characters';
+test('Japanese UI has every Korean key and no Korean fallback',()=>{assert.deepEqual(Object.keys(ja).sort(),Object.keys(ko).sort());for(const value of Object.values(ja)){assert.ok(value.length);assert.ok(!/[가-힣]/.test(value))}});
+test('all character events have Japanese dialogue',()=>{for(const c of characters)for(const event of Object.keys(eventNames) as Reaction[]){const line=lineFor(c.index,event,100,'ja');assert.ok(line);assert.ok(!/[가-힣]/.test(line));assert.ok(!/[가-힣]/.test(eventName(event,'ja')))}});
+test('game result uses a language-independent translation key',()=>{const g=new Chess();['f3','e5','g4','Qh4#'].forEach(m=>g.move(m));assert.equal(outcomeKey(g),'blackWins');assert.equal(ja[outcomeKey(g)!],'黒の勝ち')});

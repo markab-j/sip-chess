@@ -1,0 +1,32 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const url=process.env.TEST_URL||'http://127.0.0.1:4175/sip-chess/';
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||(fs.existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined),args:['--no-sandbox']});
+ const page=await browser.newPage({viewport:{width:1440,height:1050}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const shot=async name=>{fs.mkdirSync('/tmp/hansu-tests',{recursive:true});await page.screenshot({path:`/tmp/hansu-tests/${name}.png`,fullPage:true})};
+ const square=sq=>page.locator(`.square[aria-label^="${sq} "]`);
+ const move=async(a,b)=>{await square(a).click();await square(b).click()};
+ const stored=()=>page.evaluate(()=>JSON.parse(localStorage.getItem('anime-chess-v2')));
+ async function fixture(pgn,side='w'){await page.evaluate(({pgn,side})=>{let s=JSON.parse(localStorage.getItem('anime-chess-v2'));Object.assign(s,{pgn,side,screen:'game',hasSave:true,player:1,opponent:2});localStorage.setItem('anime-chess-v2',JSON.stringify(s))},{pgn,side});await page.reload();await page.locator('.player-profile h2').waitFor();await page.waitForFunction(()=>document.querySelector('.player-profile h2')?.textContent==='시오')}
+ await page.goto(url);await page.waitForFunction(()=>document.querySelector('.main-play')&&!document.querySelector('.main-play').disabled);await shot('home');
+ assert.equal(await page.locator('.home p,.home small').count(),0);
+ await page.getByRole('button',{name:'게임 시작',exact:true}).click();await page.getByRole('button',{name:'시라유키 시오',exact:true}).click();await shot('select');await page.getByRole('button',{name:'대국 시작',exact:true}).click();
+ assert.equal(await page.locator('.player-profile h2').innerText(),'시오');assert.notEqual(await page.locator('.opponent-profile h2').innerText(),'시오');assert.equal(await page.getByTestId('side-reaction').count(),0);
+ await move('e2','e4');await page.waitForFunction(()=>document.querySelectorAll('.history span').length===2);await page.reload();await page.waitForFunction(()=>document.querySelectorAll('.history span').length===2);
+ const board=await page.locator('.board-frame').boundingBox(),top=await page.locator('.opponent-profile').boundingBox(),bottom=await page.locator('.player-profile').boundingBox();assert.ok(top.y+top.height<=board.y+1);assert.ok(bottom.y>=board.y+board.height-1);await shot('game');
+ // i18n changes UI, labels and characters without starting a new game.
+ const pgn=(await stored()).pgn;await page.getByLabel('언어',{exact:true}).selectOption('ja');await page.getByRole('button',{name:'待った',exact:true}).waitFor();assert.equal(await page.locator('html').getAttribute('lang'),'ja');assert.equal(await page.locator('.player-profile h2').innerText(),'しお');assert.equal((await stored()).pgn,pgn);await page.reload();await page.getByRole('button',{name:'待った',exact:true}).waitFor();await page.getByLabel('演出テスト',{exact:true}).click();await page.getByLabel('テストキャラクター').selectOption('1');await page.getByRole('button',{name:'アンパッサン',exact:true}).click();const reaction=page.getByTestId('side-reaction');await reaction.waitFor();assert.ok(!/[가-힣]/.test(await reaction.innerText()));assert.equal(await page.locator('.cinema').count(),0);await shot('japanese-reaction');await page.getByLabel('閉じる',{exact:true}).click();await page.getByLabel('言語',{exact:true}).selectOption('ko');
+ await fixture('1. e4 a6 2. e5 d5');await move('e5','d6');await page.getByTestId('side-reaction').filter({hasText:'앙파상'}).waitFor();assert.equal(await page.locator('.cinema').count(),0);
+ let b=await page.locator('.board').boundingBox(),r=await page.getByTestId('side-reaction').filter({hasText:'앙파상'}).boundingBox();assert.ok(r.x+r.width<=b.x||r.x>=b.x+b.width);
+ await fixture('1. e4 e5 2. Qh5 Nc6 3. Qxe5+','b');await move('c6','e5');await page.getByTestId('side-reaction').filter({hasText:'퀸 포획'}).waitFor();assert.equal(await page.locator('.cinema').count(),0);await shot('queen-capture');
+ // Leaving while the engine is running cannot mutate a paused game later.
+ await fixture('');await page.getByLabel('난이도',{exact:true}).selectOption('Hard');await move('e2','e4');await page.getByLabel('메인으로',{exact:true}).click();const paused=(await stored()).pgn;await page.waitForTimeout(1800);assert.equal((await stored()).pgn,paused);await page.getByRole('button',{name:'이어하기',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.history span').length===2);
+ await fixture('1. f3 e5 2. g4','b');await move('d8','h4');await page.locator('.cinema').waitFor();await page.getByRole('button',{name:'건너뛰기 →',exact:true}).click();await page.getByRole('heading',{name:'흑 승리',exact:true}).waitFor();
+ // All silhouettes fit, including Akari's horns, in both aspect ratios.
+ await page.getByLabel('연출 테스트',{exact:true}).click();for(const viewport of [{width:1440,height:1050},{width:390,height:844}]){await page.setViewportSize(viewport);for(let i=0;i<4;i++){await page.getByLabel('테스트 캐릭터').selectOption(String(i));await page.getByRole('button',{name:'체크메이트',exact:true}).click();await page.locator('.cinema').waitFor();await page.waitForTimeout(1400);const art=await page.locator('[data-testid="finish-art"] .art-window').boundingBox();assert.ok(art.y>=0&&art.y+art.height<=viewport.height,JSON.stringify({i,viewport,art}));if(i===0)await shot('finish-'+viewport.width);await page.getByRole('button',{name:'건너뛰기 →',exact:true}).click()}}
+ await page.getByRole('button',{name:'앙파상',exact:true}).click();await reaction.waitFor();b=await page.locator('.board').boundingBox();r=await reaction.boundingBox();assert.ok(r.y+r.height<=b.y);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);await page.getByLabel('닫기',{exact:true}).click();await shot('mobile');
+ await page.getByLabel('연출 테스트',{exact:true}).click();await page.emulateMedia({reducedMotion:'reduce'});await page.getByRole('button',{name:'체크메이트',exact:true}).click();await page.locator('.cinema').waitFor({state:'hidden',timeout:2000});
+ assert.deepEqual(errors,[]);console.log('PASS: menu, 4-character selection, random opponent, AI, restore, ko/ja persistence and dialogue, actual en passant/queen capture/mate, stale AI cancellation, top/bottom profiles, 8 head-containment checks, mobile reactions, reduced motion.');await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

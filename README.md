@@ -1,25 +1,41 @@
-# Astral Gambit — Anime Chess
+# 한 수 — Anime Chess
 
-SvelteKit / TypeScript / chess.js / Stockfish 17.1 WASM single-worker prototype.
-
-## Run
+SvelteKit / TypeScript / chess.js / Stockfish 17.1 WASM.
 
 ```sh
 npm ci
 npm run dev -- --host 0.0.0.0
 npm run check
 npm test
-npm run build
+BASE_PATH=/sip-chess npm run build
 ```
 
-Click or drag a piece. Settings changes side (starts a new game), sound and cinematics. Cutscene Lab uses the exact same Promise-based overlay as live matches. Saved PGN retains repetition history. Restart terminates the previous engine and invalidates pending moves.
+## Play
 
-Original SVG portraits live in `static/art`; character metadata and dialogue in `src/lib/game.ts`. These are stylized placeholder illustrations, ready to replace with production artwork. Current reactions use dialogue, lighting and pose rather than separately drawn facial expressions. Cutscene layers and timelines are in `src/lib/Cutscene.svelte`; sounds are synthesized locally.
+Main menu → Start → choose one of four characters, color and difficulty. Only single-player is available. The menu contains the logo and primary action without promotional subtitles.
+An opponent is randomly selected from the other three. Characters do not alter chess rules or AI strength.
+Click or drag to move, choose promotion, undo or start a new game. PGN and character selection are restored from localStorage. Returning to the menu pauses AI; continue resumes the saved game. Restart/menu changes terminate the Worker and invalidate pending results.
 
-Stockfish binaries are bundled locally in `static/engine` under GPLv3 (included LICENSE.txt). Corresponding source: https://github.com/nmrugg/stockfish.js/tree/v17.1.0 and the pinned npm stockfish package. No external image or audio services are required.
+Only checkmate uses a full-screen, skippable cinematic. Check, queen capture, en passant, promotion, castling and ordinary captures display character-specific dialogue and transparent illustrations in reserved side space. Normal play shows profile portraits above (opponent) and below (player) the board. Desktop side columns are reserved for event illustrations. Mobile reserves two reaction areas above the board. Checkmate uses viewport-bounded, top-anchored art so faces and horns stay visible. The non-modal animation lab uses the exact same reactions and checkmate timeline.
 
-The environment is isolated: use this checkout; do not create an additional worktree unless explicitly requested. No backend or credentials needed.
+## Languages
 
-## Public deployment
+The language selector supports Korean and Japanese only. UI, errors, results, character names and dialogue all change immediately; the preference persists independently of the saved match. Translation keys live in `src/lib/i18n.ts`, and character dialogue lives in `src/lib/characters.ts`.
 
-GitHub Pages workflow: `.github/workflows/pages.yml`. Enable Pages with source **GitHub Actions** in the repository settings. Pushes to `main` validate and deploy a static build with `BASE_PATH=/sip-chess`. No running Node server is needed in production. To build manually: `BASE_PATH=/sip-chess npm run build`; upload the `build` directory to static hosting under that path.
+## Browser regression tests
+
+With the dev server running, run `TEST_URL=http://127.0.0.1:5173 npm run test:browser`. Tests use system Chromium when available; otherwise install Chromium with `npx playwright install chromium`. `CHROMIUM_PATH` can select a browser binary. Screenshots are written outside the checkout to `/tmp/hansu-tests`. The tests cover the menu, random opponent, actual AI response, game restore, language persistence, en passant, queen capture, checkmate, stale AI cancellation, profile positions, full character containment at desktop/mobile sizes and reduced motion.
+
+## Art and dialogue
+
+`static/art/characters.png` is a real alpha-transparent raster sheet edited using the image-generation tool from the four unique user-supplied character references. No SVG character substitutes or external image URLs are used. The source generation is retained in the workspace's generated_images directory. CharacterArt uses CSS viewports into the raster sheet; portraits and full-body views share that image.
+
+Names, personalities and event lines live in `src/lib/characters.ts`. SideReaction renders nonblocking character reactions; Cutscene handles checkmate only. Audio is synthesized locally. The uploaded video was used as motion reference, not embedded or redistributed.
+
+## Deployment
+
+`.github/workflows/pages.yml` validates and deploys main to GitHub Pages. Set repository Settings → Pages → Source to GitHub Actions. `BASE_PATH=/sip-chess npm run build` produces the static `build` directory; no production Node server or backend required.
+
+Stockfish binaries in `static/engine` are GPLv3 (LICENSE.txt included). Corresponding source: https://github.com/nmrugg/stockfish.js/tree/v17.1.0 and the pinned npm stockfish package.
+
+Use the existing isolated checkout. Do not create a Git worktree unless explicitly requested. No credentials are needed to run the game locally.

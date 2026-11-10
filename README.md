@@ -43,3 +43,11 @@ The viewport layout keeps controls visible without document scrolling, including
 Stockfish binaries in `static/engine` are GPLv3 (LICENSE.txt included). Corresponding source: https://github.com/nmrugg/stockfish.js/tree/v17.1.0 and the pinned npm stockfish package.
 
 Use the existing isolated checkout. Do not create a Git worktree unless explicitly requested. No credentials are needed to run the game locally.
+
+## Character reactions and move feedback
+
+Every `Character` must provide Korean and Japanese dialogue for every event. Pawn, knight, bishop, rook, queen captures each have distinct lines; capture, evaluation and waiting variations cycle without consecutive repetition. Side reactions use global Svelte slide transitions on entry and exit, including keyed replacements; dialogue has no event subtitle.
+
+The existing Stockfish Worker performs two 300 ms, full-strength evaluations around a human move. Scores are normalized to White, bounded scores are ignored, and depth below 8 suppresses feedback. A loss of at least 180 centipawns triggers teasing; matching the engine's best move with at most 35 cp loss in a contested position triggers surprise. This is quick engine feedback, not a deep accuracy rating. AI playing strength remains the selected difficulty.
+
+AI response delays vary by opening/middlegame, random hesitation and the previous move's quality. Thinking dialogue appears after 2.2 seconds and remains readable before moving. Waiting dialogue occurs every 24–36 seconds on the human turn. Menu/restart invalidates analysis and cancels pauses and dialogue timers. Run `TEST_URL=http://127.0.0.1:4177/sip-chess/ node tests/reactions.cjs` to verify actual entrance/exit motion, varied label-free dialogue, idle dialogue and real Stockfish blunder feedback.

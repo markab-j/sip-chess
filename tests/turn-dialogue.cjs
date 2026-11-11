@@ -1,0 +1,30 @@
+const {chromium}=require('playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+ const browser=await chromium.launch({headless:true,executablePath:'/usr/bin/chromium',args:['--no-sandbox']});
+ const page=await browser.newPage();
+ // Keep the real engine, but delay searches to exercise the long-thinking UI.
+ await page.addInitScript(()=>{const NativeWorker=window.Worker;window.Worker=class extends NativeWorker{postMessage(message,...args){if(typeof message==='string'&&message.startsWith('go '))setTimeout(()=>super.postMessage(message,...args),6000);else super.postMessage(message,...args)}}});
+ const url=process.env.TEST_URL||'http://127.0.0.1:5190/';
+ await page.goto(url);
+ await page.evaluate(()=>localStorage.setItem('anime-chess-v2',JSON.stringify({pgn:'',side:'b',level:'Normal',effects:true,player:0,opponent:1,hasSave:true,screen:'game'})));
+ await page.reload();await page.locator('.opponent-profile').waitFor();
+ await page.waitForTimeout(2500);
+ assert.equal(await page.locator('.opponent-profile .profile-status').innerText(),'','ordinary thinking stays silent');
+ assert.equal(await page.locator('[data-event="thinking"]').count(),0);
+ await page.waitForFunction(()=>document.querySelector('.opponent-profile .profile-status')?.textContent.includes('생각'));assert.equal(await page.locator('[data-event="thinking"]').count(),0);
+ assert.ok((await page.locator('.opponent-profile .profile-status').innerText()).includes('생각'));
+ assert.equal(Number(await page.locator('.board').getAttribute('data-ply')),0);
+ await page.waitForFunction(()=>Number(document.querySelector('.board')?.getAttribute('data-ply'))===1);
+ assert.equal(await page.locator('.opponent-profile .profile-status').innerText(),'');
+ await page.close();
+ const human=await browser.newPage();await human.goto(url);
+ await human.evaluate(()=>localStorage.setItem('anime-chess-v2',JSON.stringify({pgn:'[SetUp "1"]\n[FEN "1r5k/P7/8/8/8/8/8/4K3 w - - 0 1"]\n\n*',side:'w',level:'Normal',effects:true,player:0,opponent:1,hasSave:true,screen:'game'})));
+ await human.addInitScript(()=>Math.random=()=>0);await human.reload();assert.equal(await human.locator('.history').count(),0);await human.locator('[data-square="a7"]').click();await human.locator('[data-square="b8"]').click();await human.getByRole('button',{name:'퀸',exact:true}).click();
+ await human.locator('[data-event="promotion"]').waitFor();
+ assert.ok((await human.locator('[data-square="a7"]').getAttribute('aria-label')).includes('wp'));
+ assert.equal(await human.locator('[data-event="good"],[data-event="blunder"]').count(),0,'move event replaces evaluation dialogue');
+ await human.waitForFunction(()=>document.querySelector('[data-square="b8"]')?.getAttribute('aria-label')?.includes('wq'));
+ assert.equal(await human.locator('[data-event="good"],[data-event="blunder"]').count(),0);
+ await human.evaluate(()=>{const s=JSON.parse(localStorage.getItem('anime-chess-v2'));s.pgn='1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7#';localStorage.setItem('anime-chess-v2',JSON.stringify(s))});await human.reload();await human.locator('.result').waitFor();await human.getByText('기보',{exact:true}).click();assert.equal(await human.locator('.history span').count(),4);assert.ok((await human.locator('.history').innerText()).includes('Qxf7#'));await human.getByLabel('이전 기보',{exact:true}).click();assert.equal(await human.locator('.history span').count(),3);await human.getByLabel('다음 기보',{exact:true}).click();assert.ok((await human.locator('.history').innerText()).includes('Qxf7#'));await human.reload();await human.locator('.result').waitFor();assert.equal(await human.locator('.history span').count(),4);await browser.close();console.log('PASS: short thinking silent, long thinking visible, dialogue precedes move, one dialogue per turn');
+})().catch(e=>{console.error(e);process.exit(1)});

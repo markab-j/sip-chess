@@ -15,5 +15,8 @@ export function assessMove(before:Evaluation|null,after:Evaluation|null,side:str
  return null;
 }
 export function thinkingTime(ply:number,quality:'blunder'|'good'|null,random=Math.random){
- const opening=ply<10;return Math.round((opening?450:1100)+random()*(opening?650:1600)+(quality==='good'?1500:0)+(random()<.18?1800:0));
+ const opening=ply<10;return Math.round((opening?450:1100)+random()*(opening?650:1600)+(quality==='good'?1500:0)+(random()<.03?1800:0));
 }
+
+// Display thinking only when deliberation actually lasts at least five seconds.
+export function shouldThink(elapsedMs:number){return elapsedMs>=5000}

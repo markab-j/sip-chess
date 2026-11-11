@@ -1,0 +1,6 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {freshDialogue,selectDialogue,restoreDialogue} from '../src/lib/dialogue';
+test('routine moves and idle/thinking never produce unsolicited lines',()=>{for(const event of ['pawn','knight','bishop','castle','good','waiting','thinking'] as const)assert.equal(selectDialogue(freshDialogue(),event,20,100000,()=>0),false)});
+test('both sides share time and move cooldowns across save/restore',()=>{let s=freshDialogue();assert.equal(selectDialogue(s,'queen',10,100000,()=>0),true);s=restoreDialogue(JSON.parse(JSON.stringify(s)));assert.equal(selectDialogue(s,'promotion',11,200000,()=>0),false);assert.equal(selectDialogue(s,'promotion',22,110000,()=>0),false);assert.equal(selectDialogue(s,'promotion',24,200000,()=>0),true)});
+test('failed candidates cannot reroll within a turn',()=>{const s=freshDialogue();assert.equal(selectDialogue(s,'queen',10,100000,()=>.9),false);assert.equal(selectDialogue(s,'promotion',10,100000,()=>0),false)});
+test('dense event sequences still leave at least six full moves and 45 seconds of silence',()=>{const s=freshDialogue();const spoken:number[]=[];for(let ply=0;ply<200;ply++)if(selectDialogue(s,'queen',ply,100000+ply*3000,()=>0))spoken.push(ply);assert.ok(spoken.length<=14);for(let i=1;i<spoken.length;i++)assert.ok(spoken[i]-spoken[i-1]>=15)});
